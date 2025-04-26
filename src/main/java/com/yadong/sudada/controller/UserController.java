@@ -40,9 +40,6 @@ import static com.yadong.sudada.service.impl.UserServiceImpl.SALT;
 
 /**
  * 用户接口
- *
- * @author <a href="https://github.com/liyadong">程序员鱼皮</a>
- * @from <a href="https://yadong.icu">编程导航知识星球</a>
  */
 @RestController
 @RequestMapping("/user")
@@ -51,8 +48,6 @@ public class UserController {
 
     @Resource
     private UserService userService;
-
-    // region 登录相关
 
     /**
      * 用户注册

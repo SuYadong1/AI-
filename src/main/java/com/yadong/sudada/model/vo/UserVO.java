@@ -1,22 +1,37 @@
 package com.yadong.sudada.model.vo;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import lombok.Data;
+
 import java.io.Serializable;
 import java.util.Date;
-import lombok.Data;
 
 /**
  * 用户视图（脱敏）
- *
- * @author <a href="https://github.com/liyadong">程序员鱼皮</a>
- * @from <a href="https://yadong.icu">编程导航知识星球</a>
+ * 这里仅仅去掉了密码
  */
 @Data
 public class UserVO implements Serializable {
-
     /**
      * id
      */
     private Long id;
+
+    /**
+     * 账号
+     */
+    private String userAccount;
+
+    /**
+     * 微信开放平台id
+     */
+    private String unionId;
+
+    /**
+     * 公众号openId
+     */
+    private String mpOpenId;
 
     /**
      * 用户昵称
@@ -42,6 +57,11 @@ public class UserVO implements Serializable {
      * 创建时间
      */
     private Date createTime;
+
+    /**
+     * 更新时间
+     */
+    private Date updateTime;
 
     private static final long serialVersionUID = 1L;
 }

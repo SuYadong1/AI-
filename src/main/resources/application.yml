@@ -1,6 +1,4 @@
 # 公共配置文件
-# @author <a href="https://github.com/liyadong">程序员鱼皮</a>
-# @from <a href="https://yadong.icu">编程导航知识星球</a>
 spring:
   application:
     name: sudada-backend
@@ -21,7 +19,7 @@ spring:
   # todo 需替换配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/my_db
+    url: jdbc:mysql://localhost:3306/sudada
     username: root
     password: 1234
   # Redis 配置
@@ -51,11 +49,13 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: false
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
   global-config:
     db-config:
       logic-delete-field: isDelete # 全局逻辑删除的实体字段名
       logic-delete-value: 1 # 逻辑已删除值（默认为 1）
       logic-not-delete-value: 0 # 逻辑未删除值（默认为 0）
+      update-strategy: NOT_EMPTY # 空字符串和null值不更新
 # 对象存储
 # todo 需替换配置
 cos:

@@ -7,9 +7,6 @@ import lombok.EqualsAndHashCode;
 
 /**
  * 用户查询请求
- *
- * @author <a href="https://github.com/liyadong">程序员鱼皮</a>
- * @from <a href="https://yadong.icu">编程导航知识星球</a>
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -18,6 +15,11 @@ public class UserQueryRequest extends PageRequest implements Serializable {
      * id
      */
     private Long id;
+
+    /**
+     * 账号
+     */
+    private String userAccount;
 
     /**
      * 开放平台id
