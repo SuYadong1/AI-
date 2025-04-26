@@ -2,9 +2,6 @@ package com.yadong.sudada.common;
 
 /**
  * 返回工具类
- *
- * @author <a href="https://github.com/liyadong">程序员鱼皮</a>
- * @from <a href="https://yadong.icu">编程导航知识星球</a>
  */
 public class ResultUtils {
 

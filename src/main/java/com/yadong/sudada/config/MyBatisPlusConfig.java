@@ -9,8 +9,6 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * MyBatis Plus 配置
- *
- * @author https://github.com/liyadong
  */
 @Configuration
 @MapperScan("com.yadong.sudada.mapper")
