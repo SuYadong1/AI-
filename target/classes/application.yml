@@ -75,3 +75,7 @@ knife4j:
         api-rule: package
         api-rule-resources:
           - com.yadong.sudada.controller
+
+# ai apiKey配置
+ai:
+  apiKey: 97568af05e5046ce9149e3c040ecface.wuQZ7ZbWIxO1SwMm

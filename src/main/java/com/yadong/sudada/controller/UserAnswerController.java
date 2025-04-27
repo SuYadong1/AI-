@@ -54,10 +54,6 @@ public class UserAnswerController {
 
     /**
      * 创建用户答题记录
-     *
-     * @param userAnswerAddRequest
-     * @param request
-     * @return
      */
     @PostMapping("/add")
     public BaseResponse<Long> addUserAnswer(@RequestBody UserAnswerAddRequest userAnswerAddRequest, HttpServletRequest request) {
@@ -94,10 +90,6 @@ public class UserAnswerController {
 
     /**
      * 删除用户答题记录
-     *
-     * @param deleteRequest
-     * @param request
-     * @return
      */
     @PostMapping("/delete")
     public BaseResponse<Boolean> deleteUserAnswer(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
@@ -121,9 +113,6 @@ public class UserAnswerController {
 
     /**
      * 更新用户答题记录（仅管理员可用）
-     *
-     * @param userAnswerUpdateRequest
-     * @return
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
@@ -150,9 +139,6 @@ public class UserAnswerController {
 
     /**
      * 根据 id 获取用户答题记录（封装类）
-     *
-     * @param id
-     * @return
      */
     @GetMapping("/get/vo")
     public BaseResponse<UserAnswerVO> getUserAnswerVOById(long id, HttpServletRequest request) {
@@ -166,9 +152,6 @@ public class UserAnswerController {
 
     /**
      * 分页获取用户答题记录列表（仅管理员可用）
-     *
-     * @param UserAnswerQueryRequest
-     * @return
      */
     @PostMapping("/list/page")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
@@ -183,10 +166,6 @@ public class UserAnswerController {
 
     /**
      * 分页获取用户答题记录列表（封装类）
-     *
-     * @param UserAnswerQueryRequest
-     * @param request
-     * @return
      */
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<UserAnswerVO>> listUserAnswerVOByPage(@RequestBody UserAnswerQueryRequest UserAnswerQueryRequest,
@@ -204,10 +183,6 @@ public class UserAnswerController {
 
     /**
      * 分页获取当前登录用户创建的用户答题记录列表
-     *
-     * @param UserAnswerQueryRequest
-     * @param request
-     * @return
      */
     @PostMapping("/my/list/page/vo")
     public BaseResponse<Page<UserAnswerVO>> listMyUserAnswerVOByPage(@RequestBody UserAnswerQueryRequest UserAnswerQueryRequest,
@@ -229,10 +204,6 @@ public class UserAnswerController {
 
     /**
      * 编辑用户答题记录（给用户使用）
-     *
-     * @param userAnswerEditRequest
-     * @param request
-     * @return
      */
     @PostMapping("/edit")
     public BaseResponse<Boolean> editUserAnswer(@RequestBody UserAnswerEditRequest userAnswerEditRequest, HttpServletRequest request) {

@@ -12,6 +12,7 @@ import com.yadong.sudada.exception.ThrowUtils;
 import com.yadong.sudada.model.dto.app.*;
 import com.yadong.sudada.model.entity.App;
 import com.yadong.sudada.model.entity.User;
+import com.yadong.sudada.model.enums.ReviewStatusEnum;
 import com.yadong.sudada.model.vo.AppVO;
 import com.yadong.sudada.service.AppService;
 import com.yadong.sudada.service.UserService;
@@ -41,9 +42,6 @@ public class AppController {
 
     /**
      * 创建应用
-     *
-     * @param appAddRequest
-     * @param request
      * @return 插入数据库中的数据id
      */
     @PostMapping("/add")
@@ -67,9 +65,6 @@ public class AppController {
 
     /**
      * 删除应用
-     *
-     * @param deleteRequest
-     * @param request
      * @return 是否删除成功
      */
     @PostMapping("/delete")
@@ -94,9 +89,6 @@ public class AppController {
 
     /**
      * 更新应用（仅管理员可用）
-     *
-     * @param appUpdateRequest
-     * @return
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
@@ -121,9 +113,6 @@ public class AppController {
 
     /**
      * 根据 id 获取应用（封装类）
-     *
-     * @param id
-     * @return
      */
     @GetMapping("/get/vo")
     public BaseResponse<AppVO> getAppVOById(long id, HttpServletRequest request) {
@@ -137,9 +126,6 @@ public class AppController {
 
     /**
      * 分页获取应用列表（仅管理员可用）
-     *
-     * @param appQueryRequest
-     * @return
      */
     @PostMapping("/list/page")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
@@ -154,10 +140,6 @@ public class AppController {
 
     /**
      * 分页获取应用列表（封装类）
-     *
-     * @param appQueryRequest
-     * @param request
-     * @return
      */
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<AppVO>> listAppVOByPage(@RequestBody AppQueryRequest appQueryRequest,
@@ -176,10 +158,6 @@ public class AppController {
 
     /**
      * 分页获取当前登录用户创建的应用列表
-     *
-     * @param appQueryRequest
-     * @param request
-     * @return
      */
     @PostMapping("/my/list/page/vo")
     public BaseResponse<Page<AppVO>> listMyAppVOByPage(@RequestBody AppQueryRequest appQueryRequest,
@@ -201,10 +179,6 @@ public class AppController {
 
     /**
      * 编辑应用（给用户使用）
-     *
-     * @param appEditRequest
-     * @param request
-     * @return
      */
     @PostMapping("/edit")
     public BaseResponse<Boolean> editApp(@RequestBody AppEditRequest appEditRequest, HttpServletRequest request) {
@@ -214,6 +188,8 @@ public class AppController {
         // 在此处将实体类和 DTO 进行转换
         App app = new App();
         BeanUtils.copyProperties(appEditRequest, app);
+        // 修改审核状态，需要重新审核
+        app.setReviewStatus(ReviewStatusEnum.TO_BE_REVIEWED.getValue());
         // 数据校验
         appService.validApp(app, false);
         User loginUser = userService.getLoginUser(request);

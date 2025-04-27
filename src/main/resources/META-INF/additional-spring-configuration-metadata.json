@@ -29,6 +29,11 @@
       "name": "wx.open.appSecret",
       "type": "java.lang.String",
       "description": "Description for wx.open.appSecret."
+    },
+    {
+      "name": "ai.apiKey",
+      "type": "java.lang.String",
+      "description": "Description for ai.apiKey."
     }
   ]
 }

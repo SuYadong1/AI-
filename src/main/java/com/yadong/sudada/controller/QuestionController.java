@@ -11,10 +11,7 @@ import com.yadong.sudada.common.ResultUtils;
 import com.yadong.sudada.constant.UserConstant;
 import com.yadong.sudada.exception.BusinessException;
 import com.yadong.sudada.exception.ThrowUtils;
-import com.yadong.sudada.model.dto.question.QuestionAddRequest;
-import com.yadong.sudada.model.dto.question.QuestionEditRequest;
-import com.yadong.sudada.model.dto.question.QuestionQueryRequest;
-import com.yadong.sudada.model.dto.question.QuestionUpdateRequest;
+import com.yadong.sudada.model.dto.question.*;
 import com.yadong.sudada.model.entity.Question;
 import com.yadong.sudada.model.entity.QuestionContent;
 import com.yadong.sudada.model.entity.User;
@@ -47,10 +44,6 @@ public class QuestionController {
 
     /**
      * 创建问题
-     *
-     * @param questionAddRequest
-     * @param request
-     * @return
      */
     @PostMapping("/add")
     public BaseResponse<Long> addQuestion(@RequestBody QuestionAddRequest questionAddRequest, HttpServletRequest request) {
@@ -77,10 +70,6 @@ public class QuestionController {
 
     /**
      * 删除问题
-     *
-     * @param deleteRequest
-     * @param request
-     * @return
      */
     @PostMapping("/delete")
     public BaseResponse<Boolean> deleteQuestion(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
@@ -104,9 +93,6 @@ public class QuestionController {
 
     /**
      * 更新问题（仅管理员可用）
-     *
-     * @param questionUpdateRequest
-     * @return
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
@@ -134,9 +120,6 @@ public class QuestionController {
 
     /**
      * 根据 id 获取问题（封装类）
-     *
-     * @param id
-     * @return
      */
     @GetMapping("/get/vo")
     public BaseResponse<QuestionVO> getQuestionVOById(long id, HttpServletRequest request) {
@@ -150,9 +133,6 @@ public class QuestionController {
 
     /**
      * 分页获取问题列表（仅管理员可用）
-     *
-     * @param QuestionQueryRequest
-     * @return
      */
     @PostMapping("/list/page")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
@@ -167,10 +147,6 @@ public class QuestionController {
 
     /**
      * 分页获取问题列表（封装类）
-     *
-     * @param QuestionQueryRequest
-     * @param request
-     * @return
      */
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<QuestionVO>> listQuestionVOByPage(@RequestBody QuestionQueryRequest QuestionQueryRequest,
@@ -188,10 +164,6 @@ public class QuestionController {
 
     /**
      * 分页获取当前登录用户创建的问题列表
-     *
-     * @param questionQueryRequest
-     * @param request
-     * @return
      */
     @PostMapping("/my/list/page/vo")
     public BaseResponse<Page<QuestionVO>> listMyQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
@@ -213,10 +185,6 @@ public class QuestionController {
 
     /**
      * 编辑问题（给用户使用）
-     *
-     * @param questionEditRequest
-     * @param request
-     * @return
      */
     @PostMapping("/edit")
     public BaseResponse<Boolean> editQuestion(@RequestBody QuestionEditRequest questionEditRequest, HttpServletRequest request) {
@@ -243,5 +211,15 @@ public class QuestionController {
         boolean result = questionService.updateById(question);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
+    }
+
+    /**
+     * AI生成题目
+     */
+    @PostMapping("/ai_generate")
+    public BaseResponse<List<QuestionContent>> generateQuestionsByAI(@RequestBody QuestionGenerateRequest questionGenerateRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(questionGenerateRequest == null, ErrorCode.PARAMS_ERROR);
+        List<QuestionContent> result = questionService.generateQuestionsByAI(questionGenerateRequest, request);
+        return ResultUtils.success(result);
     }
 }

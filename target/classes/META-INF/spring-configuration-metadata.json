@@ -1,12 +1,27 @@
 {
   "groups": [
     {
+      "name": "ai",
+      "type": "com.yadong.sudada.config.AIConfig",
+      "sourceType": "com.yadong.sudada.config.AIConfig"
+    },
+    {
       "name": "cos.client",
       "type": "com.yadong.sudada.config.CosClientConfig",
       "sourceType": "com.yadong.sudada.config.CosClientConfig"
     }
   ],
   "properties": [
+    {
+      "name": "ai.api-key",
+      "type": "java.lang.String",
+      "sourceType": "com.yadong.sudada.config.AIConfig"
+    },
+    {
+      "name": "ai.apiKey",
+      "type": "java.lang.String",
+      "description": "Description for ai.apiKey."
+    },
     {
       "name": "cos.client.access-key",
       "type": "java.lang.String",
