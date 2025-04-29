@@ -69,22 +69,6 @@
             <option name="tableUIInfoList">
               <list>
                 <TableUIInfo>
-                  <option name="className" value="App" />
-                  <option name="tableName" value="app" />
-                </TableUIInfo>
-                <TableUIInfo>
-                  <option name="className" value="Question" />
-                  <option name="tableName" value="question" />
-                </TableUIInfo>
-                <TableUIInfo>
-                  <option name="className" value="ScoringResult" />
-                  <option name="tableName" value="scoring_result" />
-                </TableUIInfo>
-                <TableUIInfo>
-                  <option name="className" value="User" />
-                  <option name="tableName" value="user" />
-                </TableUIInfo>
-                <TableUIInfo>
                   <option name="className" value="UserAnswer" />
                   <option name="tableName" value="user_answer" />
                 </TableUIInfo>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yadong.sudada.mapper.UserAnswerMapper">
+
+    <resultMap id="BaseResultMap" type="com.yadong.sudada.model.entity.UserAnswer">
+            <id property="id" column="id" />
+            <result property="appId" column="appId" />
+            <result property="appType" column="appType" />
+            <result property="scoringStrategy" column="scoringStrategy" />
+            <result property="choices" column="choices" />
+            <result property="resultId" column="resultId" />
+            <result property="resultName" column="resultName" />
+            <result property="resultDesc" column="resultDesc" />
+            <result property="resultPicture" column="resultPicture" />
+            <result property="resultScore" column="resultScore" />
+            <result property="userId" column="userId" />
+            <result property="createTime" column="createTime" />
+            <result property="updateTime" column="updateTime" />
+            <result property="isDelete" column="isDelete" />
+    </resultMap>
+
+
+    <!--统计应用测评结果占比-->
+    <select id="getAppResultCount" resultType="com.yadong.sudada.model.dto.app.AppAnswerResultCountDTO">
+        SELECT
+            resultName,
+            COUNT(0) AS resultCount
+        FROM
+            user_answer
+        WHERE
+            appId = #{appId}
+        GROUP BY
+            resultName
+        ORDER BY
+            resultCount DESC;
+    </select>
+
+    <!--查询最火的应用-->
+    <select id="getTopApp" resultType="com.yadong.sudada.model.dto.app.AppAnswerCountDTO">
+        SELECT
+            appId,
+            count(1) as answerCount
+        FROM
+            user_answer
+        GROUP BY
+            appId
+        ORDER BY
+            answerCount desc
+        LIMIT #{num};
+    </select>
+
+</mapper>

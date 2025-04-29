@@ -1,7 +1,11 @@
 package com.yadong.sudada.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.yadong.sudada.model.dto.app.AppAnswerCountDTO;
+import com.yadong.sudada.model.dto.app.AppAnswerResultCountDTO;
 import com.yadong.sudada.model.entity.UserAnswer;
+
+import java.util.List;
 
 
 /**
@@ -12,6 +16,15 @@ import com.yadong.sudada.model.entity.UserAnswer;
 */
 public interface UserAnswerMapper extends BaseMapper<UserAnswer> {
 
+    /**
+     * 查询最火的应用
+     */
+    List<AppAnswerCountDTO> getTopApp(Integer num);
+
+    /**
+     * 统计应用测评结果占比
+     */
+    List<AppAnswerResultCountDTO> getAppResultCount(Long appId);
 }
 
 

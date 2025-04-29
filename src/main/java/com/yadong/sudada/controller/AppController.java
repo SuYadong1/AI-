@@ -16,6 +16,7 @@ import com.yadong.sudada.model.enums.ReviewStatusEnum;
 import com.yadong.sudada.model.vo.AppVO;
 import com.yadong.sudada.service.AppService;
 import com.yadong.sudada.service.UserService;
+import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
@@ -222,5 +223,4 @@ public class AppController {
         boolean result = appService.submitReview(reviewRequest, request);
         return ResultUtils.success(result);
     }
-
 }
