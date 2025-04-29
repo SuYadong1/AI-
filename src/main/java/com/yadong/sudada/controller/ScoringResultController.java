@@ -31,7 +31,7 @@ import java.util.List;
  * 评分结果接口
  */
 @RestController
-@RequestMapping("/ScoringResult")
+@RequestMapping("/scoringResult")
 @Slf4j
 public class ScoringResultController {
 

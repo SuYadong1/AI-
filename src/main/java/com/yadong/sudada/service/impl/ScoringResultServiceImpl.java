@@ -90,9 +90,6 @@ public class ScoringResultServiceImpl extends ServiceImpl<ScoringResultMapper, S
 
     /**
      * 获取查询条件
-     *
-     * @param srq
-     * @return
      */
     @Override
     public QueryWrapper<ScoringResult> getQueryWrapper(ScoringResultQueryRequest srq) {
@@ -128,10 +125,6 @@ public class ScoringResultServiceImpl extends ServiceImpl<ScoringResultMapper, S
 
     /**
      * 获取评分结果封装
-     *
-     * @param scoringResult
-     * @param request
-     * @return
      */
     @Override
     public ScoringResultVO getScoringResultVO(ScoringResult scoringResult, HttpServletRequest request) {
@@ -152,10 +145,6 @@ public class ScoringResultServiceImpl extends ServiceImpl<ScoringResultMapper, S
 
     /**
      * 分页获取评分结果封装
-     *
-     * @param ScoringResultPage
-     * @param request
-     * @return
      */
     @Override
     public Page<ScoringResultVO> getScoringResultVOPage(Page<ScoringResult> ScoringResultPage, HttpServletRequest request) {

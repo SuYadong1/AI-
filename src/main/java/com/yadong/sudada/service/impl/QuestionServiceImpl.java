@@ -6,10 +6,14 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yadong.sudada.common.ErrorCode;
+import com.yadong.sudada.common.ResultUtils;
+import com.yadong.sudada.config.VipSchedulerConfig;
 import com.yadong.sudada.constant.CommonConstant;
+import com.yadong.sudada.exception.BusinessException;
 import com.yadong.sudada.exception.ThrowUtils;
 import com.yadong.sudada.manager.AIManager;
 import com.yadong.sudada.mapper.QuestionMapper;
+import com.yadong.sudada.model.dto.question.QuestionEditRequest;
 import com.yadong.sudada.model.dto.question.QuestionGenerateRequest;
 import com.yadong.sudada.model.dto.question.QuestionQueryRequest;
 import com.yadong.sudada.model.entity.App;
@@ -17,21 +21,30 @@ import com.yadong.sudada.model.entity.Question;
 import com.yadong.sudada.model.entity.QuestionContent;
 import com.yadong.sudada.model.entity.User;
 import com.yadong.sudada.model.enums.AppTypeEnum;
+import com.yadong.sudada.model.enums.UserRoleEnum;
 import com.yadong.sudada.model.vo.QuestionVO;
 import com.yadong.sudada.model.vo.UserVO;
+import com.yadong.sudada.scoring.AIAssessmentScoringStrategy;
 import com.yadong.sudada.service.AppService;
 import com.yadong.sudada.service.QuestionService;
 import com.yadong.sudada.service.UserService;
 import com.yadong.sudada.utils.SqlUtils;
+import com.zhipu.oapi.service.v4.model.ModelData;
+import io.reactivex.Flowable;
+import io.reactivex.Scheduler;
+import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -49,6 +62,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     @Resource
     private AIManager aiManager;
+
+    @Resource
+    private Scheduler vipScheduler;
 
     /**
      * 校验数据
@@ -163,6 +179,41 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     }
 
     /**
+     * 用户编辑题目信息
+     */
+    @Override
+    public boolean editQuestion(QuestionEditRequest questionEditRequest, HttpServletRequest request) {
+        // 在此处将实体类和 DTO 进行转换
+        Question question = new Question();
+        BeanUtils.copyProperties(questionEditRequest, question);
+        List<QuestionContent> questionContents = questionEditRequest.getQuestionContents();
+        question.setQuestionContent(JSONUtil.toJsonStr(questionContents));
+
+        // 数据校验
+        this.validQuestion(question, false);
+        User loginUser = userService.getLoginUser(request);
+
+        // 判断是否存在
+        long id = questionEditRequest.getId();
+        Question oldQuestion = this.getById(id);
+        ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
+
+        // 仅本人或管理员可编辑
+        if (!oldQuestion.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+        }
+
+        // 操作数据库
+        boolean result = this.updateById(question);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+
+        // 题目发生变化时，清空存储在本地缓存的AI分析结果
+        new AIAssessmentScoringStrategy().clearAnswerCache();
+        return true;
+    }
+
+
+    /**
      * 通过AI生成题目
      * @param questionGenerateRequest 生成题目请求
      */
@@ -193,6 +244,163 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         int end = result.lastIndexOf("]");
         String questions = result.substring(start, end + 1);
         return JSONUtil.toList(questions, QuestionContent.class);
+    }
+
+    /**
+     * 通过AI流式生成题目
+     */
+    @Override
+    public SseEmitter generateQuestionsSteamByAI(QuestionGenerateRequest questionGenerateRequest, HttpServletRequest request) {
+        Long appId = questionGenerateRequest.getAppId();
+        Integer questionNumber = questionGenerateRequest.getQuestionNumber();
+        Integer optionNumber = questionGenerateRequest.getOptionNumber();
+        App app = appService.getById(appId);
+
+        // 校验appId
+        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR);
+        // 校验questionNumber
+        ThrowUtils.throwIf(questionNumber == null || questionNumber <= 0, ErrorCode.PARAMS_ERROR, "生成的题目个数不能为0");
+        // optionNumber
+        ThrowUtils.throwIf(optionNumber == null || optionNumber <= 1, ErrorCode.PARAMS_ERROR, "每个题目至少需要两个选项");
+        // 检查app是否存在
+        ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
+
+        // 封装用户消息
+        String userMessage = generateUserMessage(app, questionNumber, optionNumber);
+
+        // 建立SSE连接对象, 0表示不超时
+        SseEmitter emitter = new SseEmitter(0L);
+
+        // 发起生成题目请求
+        Flowable<ModelData> modelDataFlowable = aiManager.doStreamStableRequest(SYSTEM_MESSAGE, userMessage);
+
+        // 默认全局但线程池
+        Scheduler scheduler = Schedulers.single();
+
+        // 获取当前用户
+        User loginUser = userService.getLoginUser(request);
+        UserRoleEnum userRole = UserRoleEnum.getEnumByValue(loginUser.getUserRole());
+        // vip用户和管理员使用单独的线程池
+        if (UserRoleEnum.VIP.equals(userRole) || UserRoleEnum.ADMIN.equals(userRole)) {
+            scheduler = vipScheduler;
+        }
+
+        Flowable<Character> flowable = modelDataFlowable.observeOn(scheduler)
+                // 获取返回的数据
+                .map(item -> item.getChoices().get(0).getDelta().getContent())
+                .map(item -> item.replaceAll("\\s", ""))
+                .filter(StringUtils::isNotBlank)
+                .flatMap(message -> {
+                    List<Character> charList = new ArrayList<>();
+                    for (int i = 0; i < message.length(); i++) {
+                        charList.add(message.charAt(i));
+                    }
+                    // 将集合中的每一个数据作为数据源发射
+                    return Flowable.fromIterable(charList);
+                });
+        // 定义一个计数器
+        AtomicInteger counter = new AtomicInteger();
+        // 拼接完整的题目
+        StringBuilder question = new StringBuilder();
+        flowable.doOnNext(c -> {
+            if (c == '{') {
+                counter.getAndAdd(1);
+            }
+            if (counter.get() > 0) {
+                question.append(c);
+            }
+            if (c == '}') {
+                counter.getAndAdd(-1);
+                if (counter.get() == 0) {
+                    // 将题目转为json格式的数据,推送给前端
+                    String jsonStr = JSONUtil.toJsonStr(question.toString());
+                    emitter.send(jsonStr);
+                    // 清空 StringBuilder
+                    question.setLength(0);
+                }
+            }
+
+        }).doOnComplete(emitter::complete).subscribe();
+
+        return emitter;
+    }
+
+    @Deprecated
+    public SseEmitter generateQuestionsSteamByAITest(QuestionGenerateRequest questionGenerateRequest, boolean isVip) {
+        Long appId = questionGenerateRequest.getAppId();
+        Integer questionNumber = questionGenerateRequest.getQuestionNumber();
+        Integer optionNumber = questionGenerateRequest.getOptionNumber();
+        App app = appService.getById(appId);
+
+        // 校验appId
+        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR);
+        // 校验questionNumber
+        ThrowUtils.throwIf(questionNumber == null || questionNumber <= 0, ErrorCode.PARAMS_ERROR, "生成的题目个数不能为0");
+        // optionNumber
+        ThrowUtils.throwIf(optionNumber == null || optionNumber <= 1, ErrorCode.PARAMS_ERROR, "每个题目至少需要两个选项");
+        // 检查app是否存在
+        ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
+
+        // 封装用户消息
+        String userMessage = generateUserMessage(app, questionNumber, optionNumber);
+
+        // 建立SSE连接对象, 0表示不超时
+        SseEmitter emitter = new SseEmitter(0L);
+
+        // 发起生成题目请求
+        Flowable<ModelData> modelDataFlowable = aiManager.doStreamStableRequest(SYSTEM_MESSAGE, userMessage);
+
+        // 默认全局单线程池
+        Scheduler scheduler = Schedulers.single();
+
+        // vip用户和管理员使用单独的线程池
+        if (isVip) {
+            scheduler = vipScheduler;
+        }
+
+        Flowable<Character> flowable = modelDataFlowable.observeOn(scheduler)
+                // 获取返回的数据
+                .map(item -> item.getChoices().get(0).getDelta().getContent())
+                .map(item -> item.replaceAll("\\s", ""))
+                .filter(StringUtils::isNotBlank)
+                .flatMap(message -> {
+                    List<Character> charList = new ArrayList<>();
+                    for (int i = 0; i < message.length(); i++) {
+                        charList.add(message.charAt(i));
+                    }
+                    // 将集合中的每一个数据作为数据源发射
+                    return Flowable.fromIterable(charList);
+                });
+        // 定义一个计数器
+        AtomicInteger counter = new AtomicInteger();
+        // 拼接完整的题目
+        StringBuilder question = new StringBuilder();
+        flowable.doOnNext(c -> {
+            if (c == '{') {
+                counter.getAndAdd(1);
+            }
+            if (counter.get() > 0) {
+                question.append(c);
+            }
+            if (c == '}') {
+                counter.getAndAdd(-1);
+                if (counter.get() == 0) {
+                    // 将题目转为json格式的数据,推送给前端
+                    System.out.println("Current Thread Name: " +  Thread.currentThread().getName());
+                    // 模拟普通用户阻塞
+                    if (!isVip) {
+                        Thread.sleep(10000L);
+                    }
+                    String jsonStr = JSONUtil.toJsonStr(question.toString());
+                    emitter.send(jsonStr);
+                    // 清空 StringBuilder
+                    question.setLength(0);
+                }
+            }
+
+        }).doOnComplete(emitter::complete).subscribe();
+
+        return emitter;
     }
 
     private static final String SYSTEM_MESSAGE = "你是一位严谨的出题专家，我会给你如下信息：\n" +

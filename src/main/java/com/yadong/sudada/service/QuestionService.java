@@ -3,11 +3,13 @@ package com.yadong.sudada.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.yadong.sudada.model.dto.question.QuestionEditRequest;
 import com.yadong.sudada.model.dto.question.QuestionGenerateRequest;
 import com.yadong.sudada.model.dto.question.QuestionQueryRequest;
 import com.yadong.sudada.model.entity.Question;
 import com.yadong.sudada.model.entity.QuestionContent;
 import com.yadong.sudada.model.vo.QuestionVO;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -43,4 +45,14 @@ public interface QuestionService extends IService<Question> {
      * @param questionGenerateRequest 生成题目请求
      */
     List<QuestionContent> generateQuestionsByAI(QuestionGenerateRequest questionGenerateRequest, HttpServletRequest request);
+
+    /**
+     * 通过AI流式生成题目
+     */
+    SseEmitter generateQuestionsSteamByAI(QuestionGenerateRequest questionGenerateRequest, HttpServletRequest request);
+
+    /**
+     * 编辑题目（用户使用）
+     */
+    boolean editQuestion(QuestionEditRequest questionEditRequest, HttpServletRequest request);
 }

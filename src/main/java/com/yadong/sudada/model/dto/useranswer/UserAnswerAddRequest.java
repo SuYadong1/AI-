@@ -11,6 +11,11 @@ import java.util.List;
 @Data
 public class UserAnswerAddRequest implements Serializable {
     /**
+     * 本地回答全局唯一id
+     */
+    private Long id;
+
+    /**
      * 应用 id
      */
     private Long appId;

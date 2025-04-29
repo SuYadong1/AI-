@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.yadong.sudada.common.ErrorCode;
 import com.yadong.sudada.exception.BusinessException;
+import com.yadong.sudada.exception.ThrowUtils;
 import com.yadong.sudada.mapper.QuestionMapper;
 import com.yadong.sudada.mapper.ScoringResultMapper;
 import com.yadong.sudada.model.entity.*;
@@ -38,9 +39,7 @@ public class ScoreScoringStrategy implements ScoringStrategy{
         List<QuestionContent> questionContents = questionVO.getQuestionContents();
 
         // 检查 choices 和 questionContents 的长度是否一致
-        if (choices.size() != questionContents.size()) {
-            throw new Exception("用户答案数量与题目数量不匹配");
-        }
+        ThrowUtils.throwIf(choices.size() != questionContents.size(), ErrorCode.PARAMS_ERROR, "用户答案数量与题目数量不匹配");
 
         // 获取结果列表
         QueryWrapper<ScoringResult> resultQueryWrapper = new QueryWrapper<>();

@@ -5,6 +5,7 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.yadong.sudada.common.ErrorCode;
 import com.yadong.sudada.exception.BusinessException;
+import com.yadong.sudada.exception.ThrowUtils;
 import com.yadong.sudada.mapper.QuestionMapper;
 import com.yadong.sudada.mapper.ScoringResultMapper;
 import com.yadong.sudada.model.entity.*;
@@ -32,9 +33,7 @@ public class AssessmentScoringStrategy implements ScoringStrategy{
         queryWrapper.eq("appId", appId);
         Question question = questionMapper.selectOne(queryWrapper);
         // 校验问题是否为空
-        if (question == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "未找到对应的应用问题");
-        }
+        ThrowUtils.throwIf(question == null, ErrorCode.NOT_FOUND_ERROR, "未找到对应的应用问题");
 
         // 将question转为questionVO
         QuestionVO questionVO = QuestionVO.objToVo(question);

@@ -1,5 +1,7 @@
 package com.yadong.sudada.controller;
 
+import cn.hutool.Hutool;
+import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yadong.sudada.annotation.AuthCheck;
 import com.yadong.sudada.common.BaseResponse;
@@ -33,7 +35,7 @@ import java.util.List;
  * 用户答题记录接口
  */
 @RestController
-@RequestMapping("/UserAnswer")
+@RequestMapping("/userAnswer")
 @Slf4j
 public class UserAnswerController {
 
@@ -43,13 +45,6 @@ public class UserAnswerController {
     @Resource
     private UserService userService;
 
-    // 判题模块
-    @Resource
-    private ScoringStrategyExecutor strategyExecutor;
-
-    @Resource
-    private AppService appService;
-
     // region 增删改查
 
     /**
@@ -57,35 +52,12 @@ public class UserAnswerController {
      */
     @PostMapping("/add")
     public BaseResponse<Long> addUserAnswer(@RequestBody UserAnswerAddRequest userAnswerAddRequest, HttpServletRequest request) {
+        // 校验参数请求DTO是否为空
         ThrowUtils.throwIf(userAnswerAddRequest == null, ErrorCode.PARAMS_ERROR);
-        // 在此处将实体类和 DTO 进行转换
-        UserAnswer userAnswer = new UserAnswer();
-        BeanUtils.copyProperties(userAnswerAddRequest, userAnswer);
-        List<String> choices = userAnswerAddRequest.getChoices();
-        userAnswer.setChoices(choices.toString());
 
-        // 数据校验
-        userAnswerService.validUserAnswer(userAnswer, true);
-        // 填充默认值
-        User loginUser = userService.getLoginUser(request);
-        userAnswer.setUserId(loginUser.getId());
-        // 写入数据库
-        boolean result = userAnswerService.save(userAnswer);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        // 返回新写入的数据 id
-        long newUserAnswerId = userAnswer.getId();
-        // 调用判题模块
-        Long appId = userAnswerAddRequest.getAppId();
-        App app = appService.getById(appId);
-        try {
-            UserAnswer userResult = strategyExecutor.doScore(choices, app);
-            userResult.setId(newUserAnswerId);
-            userAnswerService.updateById(userResult);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "评分错误");
-        }
-        return ResultUtils.success(newUserAnswerId);
+        // 调用service添加用户答案
+        Long id = userAnswerService.addUserAnswer(userAnswerAddRequest, request);
+        return ResultUtils.success(id);
     }
 
     /**
@@ -210,27 +182,15 @@ public class UserAnswerController {
         if (userAnswerEditRequest == null || userAnswerEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        // 在此处将实体类和 DTO 进行转换
-        UserAnswer userAnswer = new UserAnswer();
-        BeanUtils.copyProperties(userAnswerEditRequest, userAnswer);
-        List<String> choices = userAnswerEditRequest.getChoices();
-        userAnswer.setChoices(choices.toString());
-        // 数据校验
-        userAnswerService.validUserAnswer(userAnswer, false);
-        User loginUser = userService.getLoginUser(request);
-        // 判断是否存在
-        long id = userAnswerEditRequest.getId();
-        UserAnswer oldUserAnswer = userAnswerService.getById(id);
-        ThrowUtils.throwIf(oldUserAnswer == null, ErrorCode.NOT_FOUND_ERROR);
-        // 仅本人或管理员可编辑
-        if (!oldUserAnswer.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
-        // 操作数据库
-        boolean result = userAnswerService.updateById(userAnswer);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        return ResultUtils.success(true);
+        boolean result = userAnswerService.editUserAnswer(userAnswerEditRequest, request);
+        return ResultUtils.success(result);
     }
 
     // endregion
+
+    @GetMapping("/generate/id")
+    public BaseResponse<Long> generateUserAnswerId() {
+        Long userId = IdUtil.getSnowflakeNextId();
+        return ResultUtils.success(userId);
+    }
 }

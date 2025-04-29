@@ -3,10 +3,9 @@ package com.yadong.sudada.manager;
 import com.yadong.sudada.config.AIConfig;
 import com.zhipu.oapi.ClientV4;
 import com.zhipu.oapi.Constants;
-import com.zhipu.oapi.service.v4.model.ChatCompletionRequest;
-import com.zhipu.oapi.service.v4.model.ChatMessage;
-import com.zhipu.oapi.service.v4.model.ChatMessageRole;
-import com.zhipu.oapi.service.v4.model.ModelApiResponse;
+import com.zhipu.oapi.service.v4.model.*;
+import io.reactivex.Flowable;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -43,14 +42,11 @@ public class AIManager {
         return doRequest(systemMessage, userMessage, false, temperature);
     }
 
+    /**
+     * 通用请求
+     */
     public String doRequest(String systemMessage, String userMessage, boolean stream, float temperature) {
-        List<ChatMessage> messages = new ArrayList<>();
-        // 定义系统消息
-        ChatMessage chatSystemMessage = new ChatMessage(ChatMessageRole.SYSTEM.value(), systemMessage);
-        messages.add(chatSystemMessage);
-
-        ChatMessage chatMessage = new ChatMessage(ChatMessageRole.USER.value(), userMessage);
-        messages.add(chatMessage);
+        List<ChatMessage> messages = getChatMessages(systemMessage, userMessage);
         ChatCompletionRequest chatCompletionRequest = ChatCompletionRequest.builder()
                 .model(Constants.ModelChatGLM4)
                 .stream(stream)
@@ -62,5 +58,71 @@ public class AIManager {
         Object content = invokeModelApiResp.getData().getChoices().get(0).getMessage().getContent();
 
         return content.toString();
+    }
+
+    /**
+     * 流式稳定请求
+     */
+    public Flowable<ModelData> doStreamStableRequest(String systemMessage, String userMessage) {
+        List<ChatMessage> messages = getChatMessages(systemMessage, userMessage);
+        ChatCompletionRequest chatCompletionRequest = ChatCompletionRequest.builder()
+                .model(Constants.ModelChatGLM4)
+                .stream(Boolean.TRUE)
+                .invokeMethod(Constants.invokeMethod)
+                .temperature(STABLE_TEMPERATURE)
+                .messages(messages)
+                .build();
+        ModelApiResponse invokeModelApiResp = clientV4.invokeModelApi(chatCompletionRequest);
+        return invokeModelApiResp.getFlowable();
+    }
+
+    /**
+     * 流式发散请求
+     */
+    public Flowable<ModelData> doStreamUnStableRequest(String systemMessage, String userMessage) {
+        List<ChatMessage> messages = getChatMessages(systemMessage, userMessage);
+        ChatCompletionRequest chatCompletionRequest = ChatCompletionRequest.builder()
+                .model(Constants.ModelChatGLM4)
+                .stream(Boolean.TRUE)
+                .invokeMethod(Constants.invokeMethod)
+                .temperature(UNSTABLE_TEMPERATURE)
+                .messages(messages)
+                .build();
+        ModelApiResponse invokeModelApiResp = clientV4.invokeModelApi(chatCompletionRequest);
+        return invokeModelApiResp.getFlowable();
+    }
+
+    /**
+     * 流式请求
+     */
+    public Flowable<ModelData> doStreamRequest(String systemMessage, String userMessage, float temperature) {
+        List<ChatMessage> messages = getChatMessages(systemMessage, userMessage);
+        ChatCompletionRequest chatCompletionRequest = ChatCompletionRequest.builder()
+                .model(Constants.ModelChatGLM4)
+                .stream(Boolean.TRUE)
+                .invokeMethod(Constants.invokeMethod)
+                .temperature(temperature)
+                .messages(messages)
+                .build();
+        ModelApiResponse invokeModelApiResp = clientV4.invokeModelApi(chatCompletionRequest);
+
+        return invokeModelApiResp.getFlowable();
+    }
+
+    /**
+     * 封装系统消息和用户消息
+     * @param systemMessage 系统消息
+     * @param userMessage 用户消息
+     */
+    @NotNull
+    private static List<ChatMessage> getChatMessages(String systemMessage, String userMessage) {
+        List<ChatMessage> messages = new ArrayList<>();
+        // 定义系统消息
+        ChatMessage chatSystemMessage = new ChatMessage(ChatMessageRole.SYSTEM.value(), systemMessage);
+        messages.add(chatSystemMessage);
+
+        ChatMessage chatMessage = new ChatMessage(ChatMessageRole.USER.value(), userMessage);
+        messages.add(chatMessage);
+        return messages;
     }
 }

@@ -1,23 +1,30 @@
 package com.yadong.sudada.scoring;
-import java.util.Date;
 
-import cn.hutool.core.collection.CollUtil;
+import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.yadong.sudada.common.ErrorCode;
-import com.yadong.sudada.exception.BusinessException;
+import com.yadong.sudada.exception.ThrowUtils;
 import com.yadong.sudada.manager.AIManager;
 import com.yadong.sudada.mapper.QuestionMapper;
-import com.yadong.sudada.mapper.ScoringResultMapper;
 import com.yadong.sudada.model.dto.question.QuestionAnswerDTO;
-import com.yadong.sudada.model.entity.*;
+import com.yadong.sudada.model.entity.App;
+import com.yadong.sudada.model.entity.Question;
+import com.yadong.sudada.model.entity.QuestionContent;
+import com.yadong.sudada.model.entity.UserAnswer;
 import com.yadong.sudada.model.enums.AppTypeEnum;
 import com.yadong.sudada.model.vo.QuestionVO;
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 
 import javax.annotation.Resource;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 @ScoringStrategyConfig(appType = 1, scoringStrategy = 1)
 public class AIAssessmentScoringStrategy implements ScoringStrategy{
@@ -26,6 +33,9 @@ public class AIAssessmentScoringStrategy implements ScoringStrategy{
 
     @Resource
     private AIManager aiManager;
+
+    @Resource
+    private RedissonClient redissonClient;
 
     // 向ai发起请求时的系统消息
     private static final String SYSTEM_MESSAGE = "你是一位严谨的判题专家，我会给你如下信息：\n" +
@@ -43,17 +53,26 @@ public class AIAssessmentScoringStrategy implements ScoringStrategy{
             "```\n" +
             "3. 返回格式必须为 JSON 对象\n";
 
+    // 本地缓存
+    private final Cache<String, String> answerCacheMap =
+            Caffeine.newBuilder().initialCapacity(1024)
+                    // 缓存5分钟移除
+                    .expireAfterAccess(5L, TimeUnit.MINUTES)
+                    .build();
+
+    // 分布式锁
+    private final String AI_ANSWER_LOCK = "AI_ANSWER_LOCK";
+
+
     @Override
-    public UserAnswer doScore(List<String> choices, App app) throws Exception {
+    public UserAnswer doScore(List<String> choices, App app){
         // 获取问题列表
         QueryWrapper<Question> queryWrapper = new QueryWrapper<>();
         Long appId = app.getId();
         queryWrapper.eq("appId", appId);
         Question question = questionMapper.selectOne(queryWrapper);
         // 校验问题是否为空
-        if (question == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "未找到对应的应用问题");
-        }
+        ThrowUtils.throwIf(question == null, ErrorCode.NOT_FOUND_ERROR, "未找到对应的应用问题");
 
         // 将question转为questionVO
         QuestionVO questionVO = QuestionVO.objToVo(question);
@@ -61,26 +80,63 @@ public class AIAssessmentScoringStrategy implements ScoringStrategy{
         List<QuestionContent> questionContents = questionVO.getQuestionContents();
 
         // 检查 choices 和 questionContents 的长度是否一致
-        if (choices.size() != questionContents.size()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户答案数量与题目数量不匹配");
+        ThrowUtils.throwIf(choices.size() != questionContents.size(), ErrorCode.PARAMS_ERROR, "用户答案数量与题目数量不匹配");
+
+        // 生成caffeineKey
+        String answerKey = DigestUtil.md5Hex(choices.toString());
+        String caffeineKey = appId + ":" + answerKey;
+
+        // 用缓存中获取结果
+        String answerJson = answerCacheMap.getIfPresent(caffeineKey);
+        // 如果缓存中有数据，直接返回
+        if (answerJson != null) {
+            // 转为userAnswer后resultDesc和resultName已经存在了
+            UserAnswer userAnswer = JSONUtil.toBean(answerJson, UserAnswer.class);
+            // AI评分没有resultName、resultPicture、resultId
+            userAnswer.setAppId(appId);
+            userAnswer.setAppType(app.getAppType());
+            userAnswer.setScoringStrategy(app.getScoringStrategy());
+            userAnswer.setChoices(choices.toString());
+            return userAnswer;
         }
 
-        String userMessage = generateUserMessage(app, questionContents, choices);
-        String result = aiManager.doStableSyncRequest(SYSTEM_MESSAGE, userMessage);
+        // 加入分布式锁,放置缓存穿透
+        RLock lock = redissonClient.getLock(AI_ANSWER_LOCK);
+        UserAnswer userAnswer = null;
+        try{
+            // 只有一个线程能获取到锁, 等待三秒，30s自动释放
+            if (lock.tryLock(3, 30, TimeUnit.MILLISECONDS)) {
+                // 生成用户消息
+                String userMessage = generateUserMessage(app, questionContents, choices);
+                // 请求AI接口
+                String result = aiManager.doStableSyncRequest(SYSTEM_MESSAGE, userMessage);
 
-        // 截取出需要的部分
-        int begin = result.indexOf("{");
-        int end = result.lastIndexOf("}");
-        String userAnswerJson = result.substring(begin, end + 1);
+                // 截取出需要的部分
+                int begin = result.indexOf("{");
+                int end = result.lastIndexOf("}");
+                String userAnswerJson = result.substring(begin, end + 1);
 
-        // 转为userAnswer后resultDesc和resultName已经存在了
-        UserAnswer userAnswer = JSONUtil.toBean(userAnswerJson, UserAnswer.class);
+                // 将数据转为json格式写入缓存
+                answerCacheMap.put(caffeineKey, JSONUtil.toJsonStr(userAnswerJson));
 
-        // AI评分没有resultName、resultPicture、resultId
-        userAnswer.setAppId(appId);
-        userAnswer.setAppType(app.getAppType());
-        userAnswer.setScoringStrategy(app.getScoringStrategy());
-        userAnswer.setChoices(choices.toString());
+                // 转为userAnswer后resultDesc和resultName已经存在了
+                userAnswer = JSONUtil.toBean(userAnswerJson, UserAnswer.class);
+                // AI评分没有resultName、resultPicture、resultId
+                userAnswer.setAppId(appId);
+                userAnswer.setAppType(app.getAppType());
+                userAnswer.setScoringStrategy(app.getScoringStrategy());
+                userAnswer.setChoices(choices.toString());
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        } finally {
+            // 只能释放自己的锁
+            if (lock.isHeldByCurrentThread()) {
+                System.out.println("unLock: " + Thread.currentThread().getId());
+                lock.unlock();
+            }
+        }
         return userAnswer;
     }
 
@@ -131,5 +187,10 @@ public class AIAssessmentScoringStrategy implements ScoringStrategy{
             list.add(request);
         }
         return list;
+    }
+
+    // 清空缓存
+    public void clearAnswerCache() {
+        answerCacheMap.invalidateAll();
     }
 }

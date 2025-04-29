@@ -21,6 +21,7 @@ import com.yadong.sudada.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -30,7 +31,7 @@ import java.util.List;
  * 问题接口
  */
 @RestController
-@RequestMapping("/Question")
+@RequestMapping("/question")
 @Slf4j
 public class QuestionController {
 
@@ -187,39 +188,34 @@ public class QuestionController {
      * 编辑问题（给用户使用）
      */
     @PostMapping("/edit")
-    public BaseResponse<Boolean> editQuestion(@RequestBody QuestionEditRequest questionEditRequest, HttpServletRequest request) {
+    public BaseResponse<Boolean> editQuestion(@RequestBody QuestionEditRequest questionEditRequest,
+                                              HttpServletRequest request) {
         if (questionEditRequest == null || questionEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        // 在此处将实体类和 DTO 进行转换
-        Question question = new Question();
-        BeanUtils.copyProperties(questionEditRequest, question);
-        List<QuestionContent> questionContents = questionEditRequest.getQuestionContents();
-        question.setQuestionContent(JSONUtil.toJsonStr(questionContents));
-        // 数据校验
-        questionService.validQuestion(question, false);
-        User loginUser = userService.getLoginUser(request);
-        // 判断是否存在
-        long id = questionEditRequest.getId();
-        Question oldQuestion = questionService.getById(id);
-        ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
-        // 仅本人或管理员可编辑
-        if (!oldQuestion.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
-        // 操作数据库
-        boolean result = questionService.updateById(question);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        return ResultUtils.success(true);
+        // 调用service
+        boolean result = questionService.editQuestion(questionEditRequest, request);
+        return ResultUtils.success(result);
     }
 
     /**
      * AI生成题目
      */
     @PostMapping("/ai_generate")
-    public BaseResponse<List<QuestionContent>> generateQuestionsByAI(@RequestBody QuestionGenerateRequest questionGenerateRequest, HttpServletRequest request) {
+    public BaseResponse<List<QuestionContent>> generateQuestionsByAI(@RequestBody QuestionGenerateRequest questionGenerateRequest,
+                                                                     HttpServletRequest request) {
         ThrowUtils.throwIf(questionGenerateRequest == null, ErrorCode.PARAMS_ERROR);
         List<QuestionContent> result = questionService.generateQuestionsByAI(questionGenerateRequest, request);
         return ResultUtils.success(result);
+    }
+
+    /**
+     * AI实时生成题目，用过SSE技术，生成的题目一道一道返回给前端
+     */
+    @GetMapping("/ai_generate/sse")
+    public SseEmitter generateQuestionsSteamByAI(QuestionGenerateRequest questionGenerateRequest,
+                                                 HttpServletRequest request) {
+        ThrowUtils.throwIf(questionGenerateRequest == null, ErrorCode.PARAMS_ERROR);
+        return questionService.generateQuestionsSteamByAI(questionGenerateRequest, request);
     }
 }

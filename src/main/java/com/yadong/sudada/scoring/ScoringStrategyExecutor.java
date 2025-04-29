@@ -20,10 +20,9 @@ public class ScoringStrategyExecutor {
     /**
      * 评分
      *
-     * @param choiceList
-     * @param app
-     * @return
-     * @throws Exception
+     * @param choiceList 用户答案
+     * @param app 应用
+     * @return 对应的结构
      */
     public UserAnswer doScore(List<String> choiceList, App app) throws Exception {
         Integer appType = app.getAppType();

@@ -13,7 +13,6 @@ public interface ScoringStrategy {
      * @param choices 用户答案
      * @param app 对应的应用
      * @return 结果
-     * @throws Exception
      */
     UserAnswer doScore(List<String> choices, App app) throws Exception;
 }

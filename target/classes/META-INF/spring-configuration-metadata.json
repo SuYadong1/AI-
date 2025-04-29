@@ -9,6 +9,11 @@
       "name": "cos.client",
       "type": "com.yadong.sudada.config.CosClientConfig",
       "sourceType": "com.yadong.sudada.config.CosClientConfig"
+    },
+    {
+      "name": "spring.redis",
+      "type": "com.yadong.sudada.config.RedissonConfig",
+      "sourceType": "com.yadong.sudada.config.RedissonConfig"
     }
   ],
   "properties": [
@@ -55,6 +60,21 @@
       "name": "cos.client.secretKey",
       "type": "java.lang.String",
       "description": "Description for cos.client.secretKey."
+    },
+    {
+      "name": "spring.redis.database",
+      "type": "java.lang.Integer",
+      "sourceType": "com.yadong.sudada.config.RedissonConfig"
+    },
+    {
+      "name": "spring.redis.host",
+      "type": "java.lang.String",
+      "sourceType": "com.yadong.sudada.config.RedissonConfig"
+    },
+    {
+      "name": "spring.redis.port",
+      "type": "java.lang.Integer",
+      "sourceType": "com.yadong.sudada.config.RedissonConfig"
     },
     {
       "name": "wx.open.appId",
